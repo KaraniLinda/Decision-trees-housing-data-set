@@ -1,0 +1,107 @@
+---
+title: "Regression decision trees"
+author: "LK"
+date: "2022-10-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+
+```{r}
+
+# Helper packages
+
+library(tidyverse)
+library(readr)
+
+# Modeling packages
+library(rpart)       # direct engine for decision tree application
+library(caret)       # meta engine for decision tree application
+library(rsample)
+# Model interpretability packages
+library(rpart.plot)  # for plotting decision trees
+library(vip)         # for feature importance
+library(pdp)         # for feature effects
+```
+
+# Load dataset
+
+```{r}
+ames <- AmesHousing::make_ames()
+
+glimpse(ames)
+```
+
+# Creating Training and test sets
+
+```{r}
+# Using rsample package
+
+set.seed(123)  # for reproducibility
+split_1  <- initial_split(ames, prop = 0.7)
+ames_train  <- training(split_1)
+ames_test  <- testing(split_1)
+
+dim(ames_train)
+```
+# Regression tree
+
+```{r}
+ames_dt1 <- rpart(
+  formula = Sale_Price ~ .,
+  data    = ames_train,
+  method  = "anova"
+)
+
+ames_dt1
+```
+
+# Visualize decision tree
+
+```{r}
+
+
+rpart.plot(ames_dt1)
+```
+
+
+
+```{r}
+# caret cross validation results
+ames_dt3 <- train(
+  Sale_Price ~ .,
+  data = ames_train,
+  method = "rpart",
+  trControl = trainControl(method = "cv", number = 10),
+  tuneLength = 20
+)
+
+ggplot(ames_dt3)
+```
+
+# Feature Importance
+
+```{r}
+vip(ames_dt3, num_features = 40, bar = FALSE)
+```
+
+# Partial dependence plots
+
+## Computationally expensive
+
+```{r}
+# Construct partial dependence plots
+p1 <- partial(ames_dt3, pred.var = "Gr_Liv_Area") %>% autoplot()
+p2 <- partial(ames_dt3, pred.var = "Year_Built") %>% autoplot()
+p3 <- partial(ames_dt3, pred.var = c("Gr_Liv_Area", "Year_Built")) %>% 
+  plotPartial(levelplot = FALSE, zlab = "yhat", drape = TRUE, 
+              colorkey = TRUE, screen = list(z = -20, x = -60))
+
+# Display plots side by side
+gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
+```
+
